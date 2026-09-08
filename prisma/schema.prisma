@@ -1,0 +1,40 @@
+// For local dev this uses SQLite (zero setup).
+// For production, change provider to "postgresql" and set DATABASE_URL
+// to a real Postgres connection string (Vercel Postgres, Supabase, Neon, Railway all work).
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  passwordHash  String
+  createdAt     DateTime  @default(now())
+
+  plan               String    @default("free") // "free" | "pro"
+  stripeCustomerId   String?   @unique
+  stripeSubId        String?
+  stripeStatus       String?   // active, canceled, past_due, etc.
+  currentPeriodEnd   DateTime?
+
+  usage         Usage[]
+}
+
+// Simple usage counter so free-tier limits can be enforced
+// (e.g. "5 conversions/day on Free plan").
+model Usage {
+  id        String   @id @default(cuid())
+  userId    String
+  tool      String
+  date      String   // YYYY-MM-DD, one row per user/tool/day
+  count     Int      @default(0)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, tool, date])
+}
